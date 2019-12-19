@@ -1,5 +1,6 @@
 var express = require(`express`);
 var mongoose = require(`mongoose`);
+var bodyParser = require(`body-parser`);
 var app = express();
 
 /*
@@ -44,7 +45,64 @@ db.on(`error`, (error) => {
 });
 
 app.set(`view engine`, `ejs`);
+// express에서 기본 경로. 별다른 변경이 없을 경우 명시하지 않아도 됨
+// app.set('views', __dirname + '/views');
 app.use(express.static(__dirname + `/public`));
+
+/*
+* bodyParser로 stream의 form data를 req.body에 옮겨 담습니다.
+* 2번은 json data를, 3번은 urlencoded data를 분석해서 req.body를 생성합니다.
+* 이 부분이 지금 이해가 안가시면 bodyParser로 이렇게 처리를 해 줘야 form에 입력한 data가 req.body에 object로 생성이 된다는 것만 아셔도 괜찮습니다.
+*/
+app.use(bodyParser.json()); // 2
+app.use(bodyParser.urlencoded({ extended: true })); // 3
+
+/*
+* mongoose.Schema 함수를 사용해서 DB에서 사용할 schema object를 생성
+*/
+// DB schema
+var contactSchema = mongoose.Schema({
+  name: {type:String, required:true, unique:true}
+  , email: {type:String}
+  , phone: {type:String}
+});
+/*
+* mongoose.model함수를 사용하여 contact schema의 model을 생성
+* 첫번째 parameter는 mongoDB에서 사용되는 콜렉션의 이름(테이블명(?))이며, 두번째는 mongoose.Schema로 생성된 오브젝트
+* DB에 있는 contact라는 데이터 콜렉션을 현재 코드의 Contact라는 변수에 연결해 주는 역할
+* 생성된 Contact object는 mongoDB의 contact collection의 model이며 DB에 접근하여 data를 변경할 수 있는 함수들을 가지고 있음
+* DB에 contact라는 콜렉션이 존재하지 않더라도 괜찮, 없는 콜렉션은 알아서 생성
+*/
+var Contact = mongoose.model("contact", contactSchema);
+
+// Routes
+// Home
+app.get("/", (req, res) => {
+  res.redirect("/contacts");
+});
+
+// Contacts - Index = list
+app.get("/contacts", (req, res) => {
+  // 모델.find(검색조건, function(에러, 검색결과)) 검색결과는 "배열", 검색결과가 없으면 "빈배열"
+  Contact.find({}, (err, contacts) => {
+    if (err) return res.json(err);
+    res.render("contacts/index", { contacts: contacts })
+  });
+});
+
+// Contacts - New = writeFrm
+app.get("/contacts/new", (req, res) => {
+  res.render("contacts/new");
+});
+
+// Contacts - create = writeAct
+app.post("/contacts", (req, res) => {
+  // 모델.create(생성할 data의 object, function(에러, 생성된 data))
+  Contact.create(req.body, (err, contact) => {
+    if (err) return res.json(err);
+    res.redirect("/contacts");
+  });
+});
 
 var port = 8080;
 app.listen(port, () => {
