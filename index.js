@@ -1,6 +1,7 @@
 var express = require(`express`);
 var mongoose = require(`mongoose`);
 var bodyParser = require(`body-parser`);
+var methodOverride = require(`method-override`);
 var app = express();
 
 /*
@@ -57,6 +58,12 @@ app.use(express.static(__dirname + `/public`));
 app.use(bodyParser.json()); // 2
 app.use(bodyParser.urlencoded({ extended: true })); // 3
 
+/**
+ * _method의 query로 들어오는 값으로 HTTP method를 바꿉니다.
+ * 예를들어 http://example.com/category/id?_method=delete를 받으면 _method의 값인 delete을 읽어 해당 request의 HTTP method를 delete으로 바꿉니다.
+ */
+app.use(methodOverride("_method"));
+
 /*
 * mongoose.Schema 함수를 사용해서 DB에서 사용할 schema object를 생성
 */
@@ -66,6 +73,7 @@ var contactSchema = mongoose.Schema({
   , email: {type:String}
   , phone: {type:String}
 });
+
 /*
 * mongoose.model함수를 사용하여 contact schema의 model을 생성
 * 첫번째 parameter는 mongoDB에서 사용되는 콜렉션의 이름(테이블명(?))이며, 두번째는 mongoose.Schema로 생성된 오브젝트
@@ -99,6 +107,43 @@ app.get("/contacts/new", (req, res) => {
 app.post("/contacts", (req, res) => {
   // 모델.create(생성할 data의 object, function(에러, 생성된 data))
   Contact.create(req.body, (err, contact) => {
+    if (err) return res.json(err);
+    res.redirect("/contacts");
+  });
+});
+
+// Contacts - show = views
+app.get("/contacts/:id", (req, res) => {
+  // 모델.findOne(검색조건, function(에러, 검색결과)) 검색결과는 "배열", 검색결과가 없으면 "null"
+  Contact.findOne({ _id: req.params.id }, (err, contact) => {
+    if (err) return res.json(err);
+    res.render("contacts/show", { contact: contact });
+  });
+});
+
+// Contacts - edit = modifyFrm
+app.get("/contacts/:id/edit", (req, res) => {
+  Contact.findOne({ _id: req.params.id }, (err, contact) => {
+    if (err) return res.json(err);
+    res.render("contacts/edit", { contact: contact });
+  });
+});
+
+// Contacts - update
+app.put("/contacts/:id", (req, res) => {
+  // 모델.findOneAndUpdate(검색조건, update할 정보 object, function(에러, 검색결과)) 검색결과는 "배열"
+  // callback함수로 넘겨지는 값은 수정되기 전의 값
+  // 업데이트 된 후의 값을 보고 싶다면 콜백 함수 전에 parameter로 {new:true}를 넣어 줘야 함
+  Contact.findOneAndUpdate({ _id: req.params.id }, req.body, (err, contact) => {
+    if (err) return res.json(err);
+    res.redirect("/contacts/"+req.params.id);
+  });
+});
+
+// Contacts - destory = delete
+app.delete("/contacts/:id", (err, res) => {
+  // 모델.deleteOne(검색조건, function(에러))
+  Contact.deleteOne({ _id: req.params.id}, (err) => {
     if (err) return res.json(err);
     res.redirect("/contacts");
   });
