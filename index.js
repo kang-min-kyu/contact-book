@@ -141,7 +141,7 @@ app.put("/contacts/:id", (req, res) => {
 });
 
 // Contacts - destory = delete
-app.delete("/contacts/:id", (err, res) => {
+app.delete("/contacts/:id", (req, res) => {
   // 모델.deleteOne(검색조건, function(에러))
   Contact.deleteOne({ _id: req.params.id}, (err) => {
     if (err) return res.json(err);
